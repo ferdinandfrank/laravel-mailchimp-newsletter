@@ -1,0 +1,39 @@
+{
+    "name": "ferdinandfrank/laravel-mailchimp-newsletter",
+    "description": "Manage mailchimp newsletter campaigns and more within a Laravel application",
+    "keywords": [
+        "laravel",
+        "newsletter",
+        "mailchimp"
+    ],
+    "homepage": "https://github.com/ferdinandfrank/laravel-mailchimp-newsletter",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Ferdinand Frank",
+            "email": "ferdinand-frank@web.de"
+        }
+    ],
+    "require": {
+        "php" : "~7.0",
+        "illuminate/support": "~5.5.0",
+        "drewm/mailchimp-api": "^2.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "FerdinandFrank\\Newsletter\\": "src"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "FerdinandFrank\\Newsletter\\NewsletterServiceProvider"
+            ],
+            "aliases": {
+                "Newsletter": "FerdinandFrank\\Newsletter\\NewsletterFacade"
+            }
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
