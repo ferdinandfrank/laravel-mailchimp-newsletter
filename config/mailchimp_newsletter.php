@@ -3,44 +3,86 @@
 return [
 
     /*
-     * The api key of a MailChimp account. You can find yours here:
-     * https://us10.admin.mailchimp.com/account/api-key-popup/
-     */
-    'apiKey' => env('MAILCHIMP_APIKEY'),
+    |--------------------------------------------------------------------------
+    | MailChimp API Key
+    |--------------------------------------------------------------------------
+    |
+    | The API key of the MailChimp account. Used to authenticate against the MailChimp API.
+    | You can find yours here:
+    | https://us10.admin.mailchimp.com/account/api-key-popup/
+    |
+    */
+
+    'api_key' => env('MAILCHIMP_API_KEY'),
 
     /*
-     * When not specifying a listname in the various methods, use the list with this name
-     */
-    'defaultListName' => env('MAILCHIMP_LIST_NAME', 'subscribers'),
+    |--------------------------------------------------------------------------
+    | Default MailChimp List Name
+    |--------------------------------------------------------------------------
+    |
+    | The default subscriber list name to use when no list is specifically specified in the function calls,
+    | e.g., when adding a new subscriber.
+    | The properties of this list have to be specified in the followed 'lists' array.
+    |
+    */
+
+    'default_list_name' => env('MAILCHIMP_DEFAULT_LIST_NAME', 'subscribers'),
 
     /*
-     * Here you can define properties of the lists you want to
-     * send campaigns.
-     */
+    |--------------------------------------------------------------------------
+    | MailChimp Lists
+    |--------------------------------------------------------------------------
+    |
+    | An array defining all MailChimp subscriber lists and their corresponding properties.
+    | Necessary, so on the function calls only the name of the subscriber list needs to be specified and the
+    | list id as well as other properties will automatically be fetched from this array.
+    | As many lists as wanted can be specified in this array.
+    |
+    */
+
     'lists' => [
 
-        /*
-         * This key is used to identify this list. It can be used
-         * in the various methods provided by this package.
-         *
-         * You can set it to any string you want and you can add
-         * as many lists as you want.
-         */
-        env('MAILCHIMP_LIST_NAME', 'subscribers') => [
+        env('MAILCHIMP_DEFAULT_LIST_NAME', 'subscribers') => [
 
             /*
-             * A mail chimp list id. Check the mailchimp docs if you don't know
+             * The MailChimp list id. Check the MailChimp docs if you don't know
              * how to get this value:
              * http://kb.mailchimp.com/lists/managing-subscribers/find-your-list-id
              */
-            'id' => env('MAILCHIMP_LIST_ID'),
+            'id' => env('MAILCHIMP_DEFAULT_LIST_ID'),
 
-            'interest_id' => env('MAILCHIMP_INTEREST_ID')
+            'default_interest_category_id' => env('MAILCHIMP_DEFAULT_INTEREST_CATEGORY_ID'),
+
+            'default_interest_id' => env('MAILCHIMP_DEFAULT_INTEREST_ID')
         ],
     ],
 
     /*
-     * If you're having trouble with https connections, set this to false.
-     */
+    |--------------------------------------------------------------------------
+    | MailChimp Encryption Setting
+    |--------------------------------------------------------------------------
+    |
+    | Defines if an SSL connection shall be used when communication with the MailChimp API.
+    | If you're having trouble with https connections, set this to false.
+    |
+    */
+
     'ssl' => true,
+
+    /*
+    |--------------------------------------------------------------------------
+    | MailChimp List Member Status
+    |--------------------------------------------------------------------------
+    |
+    | Lists the possible status values for a list member. Just for convenience.
+    |
+    */
+
+    'list_member_status' => [
+        'subscribed',
+        'unsubscribed',
+        'cleaned',
+        'pending',
+
+    ]
 ];

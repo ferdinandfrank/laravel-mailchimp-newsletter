@@ -17,20 +17,22 @@
     "require": {
         "php" : "~7.0",
         "illuminate/support": "~5.5.0",
+        "illuminate/database": "~5.5.0",
+        "illuminate/contracts": "~5.5.0",
         "drewm/mailchimp-api": "^2.4"
     },
     "autoload": {
         "psr-4": {
-            "FerdinandFrank\\Newsletter\\": "src"
+            "FerdinandFrank\\MailChimpNewsletter\\": "src"
         }
     },
     "extra": {
         "laravel": {
             "providers": [
-                "FerdinandFrank\\Newsletter\\NewsletterServiceProvider"
+                "FerdinandFrank\\LaravelMailChimpNewsletter\\MailChimpNewsletterServiceProvider"
             ],
             "aliases": {
-                "Newsletter": "FerdinandFrank\\Newsletter\\NewsletterFacade"
+                "MailChimpHandler": "FerdinandFrank\\LaravelMailChimpNewsletter\\Facades\\MailChimpHandler"
             }
         }
     },
