@@ -60,11 +60,11 @@ class NewsletterListMember extends NewsletterListChildModel {
             return new Collection();
         }
 
-        $interestCategories = InterestCategory::forParent($this)->all();
+        $interestCategories = InterestCategory::all();
         foreach ($interestsInfo as $id => $active) {
             if ($active) {
                 foreach ($interestCategories as $interestCategory) {
-                    $interest = $interestCategory->getInterests()->find($id);
+                    $interest = $interestCategory->interests->find($id);
                     if ($interest) {
                         $interests->push($interest);
                         break;

@@ -61,7 +61,7 @@ class MailChimpHandler {
      *
      * @return $this
      */
-    public function forParent(MailChimpModel $parent) {
+    public function forParent($parent) {
         $this->model->setParent($parent);
 
         return $this;
@@ -78,7 +78,12 @@ class MailChimpHandler {
     public function findModel($key, $attributes = []) {
         $this->model->setRouteKey($key);
         $path = $this->model->getApiPath();
-        $response = $this::get($path, ['fields' => implode(",", $attributes)]);
+        try {
+            $response = $this::get($path, ['fields' => implode(",", $attributes)]);
+        } catch (Exception $exception) {
+            // Model not found
+            return null;
+        }
 
         // Model exists so create the model to return
         $model = (new $this->model())->forceFill($response);
@@ -268,7 +273,7 @@ class MailChimpHandler {
      */
     private static function handleResponse($response) {
         if (!static::lastActionSucceeded()) {
-            throw new Exception(\MailChimp::getLastError() . '; Last Response: ' . static::getLastResponse());
+            throw new Exception(\MailChimp::getLastError() . '\n Last Response: ' . static::getLastResponse() . '\n Last Request: ' . static::getLastRequest());
         }
 
         return $response;
@@ -300,6 +305,19 @@ class MailChimpHandler {
     }
 
     /**
+     * Gets the body content of the last request.
+     *
+     * @return string
+     */
+    public static function getLastRequest() {
+        $response = \MailChimp::getLastRequest();
+        if ($response) {
+            return $response['body'];
+        }
+        return null;
+    }
+
+    /**
      * Gets the errors of the last response.
      *
      * @return string
@@ -324,7 +342,11 @@ class MailChimpHandler {
      *
      * @return string
      */
-    public static function getSubscriberHash(string $email) {
+    public static function getSubscriberHash($email) {
+        if (!$email) {
+            return $email;
+        }
+
         return \MailChimp::subscriberHash($email);
     }
 }

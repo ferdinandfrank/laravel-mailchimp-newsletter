@@ -3,6 +3,7 @@
 namespace FerdinandFrank\LaravelMailChimpNewsletter\Models;
 
 use Exception;
+use FerdinandFrank\LaravelMailChimpNewsletter\Exceptions\CampaignNotReadyException;
 use FerdinandFrank\LaravelMailChimpNewsletter\MailChimpHandler;
 use Illuminate\Support\Carbon;
 
@@ -34,9 +35,15 @@ class NewsletterCampaign extends MailChimpModel {
         'recipients',
         'title',
         'subject_line',
+        'preview_text',
         'from_name',
         'reply_to',
-        'template_id'
+        'template_id',
+        'tracking_active',
+        'social_card',
+        'social_card_title',
+        'social_card_description',
+        'social_card_image_url'
     ];
 
     /**
@@ -52,7 +59,12 @@ class NewsletterCampaign extends MailChimpModel {
      * @return string
      */
     public function getRemotePath() {
-        return MailChimpHandler::getUrlToDashboard() . static::$RESOURCE_NAME . '/wizard/neapolitan?id='
+        $subPath = '/wizard/neapolitan'; // the relative path to edit the campaign
+        if ($this->isSent()) {
+            $subPath = '/reports/summary';
+        }
+
+        return MailChimpHandler::getUrlToDashboard() . static::$RESOURCE_NAME . $subPath . '?id='
                . $this->web_id;
     }
 
@@ -66,6 +78,9 @@ class NewsletterCampaign extends MailChimpModel {
      * @throws Exception
      */
     public function sendTest($testEmails, $sendType = 'html') {
+        if (!$this->canBeSend()) {
+            throw new CampaignNotReadyException($this->checklist);
+        }
         if (!is_array($testEmails)) {
             $testEmails = [$testEmails];
         }
@@ -76,16 +91,41 @@ class NewsletterCampaign extends MailChimpModel {
     }
 
     /**
-     * Schedules the campaign to the specified datetime.
+     * Schedules the campaign to the specified datetime. If the specified datetime is in the past, the campaign will be
+     * send immediately.
      *
      * @param Carbon $scheduleTime
      *
      * @return $this
-     * @throws Exception
+     * @throws Exception|CampaignNotReadyException
      */
     public function schedule(Carbon $scheduleTime) {
-        MailChimpHandler::post($this->getApiPath() . '/actions/schedule',
-            ['schedule_time' => $scheduleTime->toAtomString()]);
+        if (!$this->canBeSend()) {
+            throw new CampaignNotReadyException($this->checklist);
+        }
+
+        if ($scheduleTime->lte(Carbon::now())) {
+            $this->send();
+        } else {
+            MailChimpHandler::post($this->getApiPath() . '/actions/schedule',
+                ['schedule_time' => $scheduleTime->toAtomString()]);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Sends the campaign immediately.
+     *
+     * @return $this
+     * @throws Exception|CampaignNotReadyException
+     */
+    public function send() {
+        if (!$this->canBeSend()) {
+            throw new CampaignNotReadyException($this->checklist);
+        }
+
+        MailChimpHandler::post($this->getApiPath() . '/actions/send');
 
         return $this;
     }
@@ -110,20 +150,20 @@ class NewsletterCampaign extends MailChimpModel {
     public function recipients() {
         $recipientsInfo = $this->getAttributeValue('recipients');
 
-        if ($recipientsInfo) {
+        if ($recipientsInfo && is_array($recipientsInfo)) {
             $list = new NewsletterList();
             $list->forceFill($recipientsInfo);
 
             return $list;
         }
 
-        return null;
+        return $recipientsInfo;
     }
 
     /**
      * Gets the checklist of this campaign.
      *
-     * @return NewsletterCampaignChildModel
+     * @return NewsletterCampaignChecklist
      */
     public function checklist() {
         return NewsletterCampaignChecklist::forParent($this)->getModel();
@@ -132,10 +172,37 @@ class NewsletterCampaign extends MailChimpModel {
     /**
      * Gets the content of this campaign.
      *
-     * @return NewsletterCampaignChildModel
+     * @return NewsletterCampaignContent
      */
     public function content() {
         return NewsletterCampaignContent::forParent($this)->getModel();
+    }
+
+    /**
+     * Checks if the newsletter campaign can be send.
+     *
+     * @return bool
+     */
+    public function canBeSend() {
+        return $this->checklist->is_ready;
+    }
+
+    /**
+     * Checks if the newsletter campaign has already been sent.
+     *
+     * @return bool
+     */
+    public function isSent() {
+        return $this->status === 'sent';
+    }
+
+    /**
+     * Checks if the newsletter campaign is scheduled to be send.
+     *
+     * @return bool
+     */
+    public function isScheduled() {
+        return $this->status === 'scheduled';
     }
 
 
@@ -159,13 +226,61 @@ class NewsletterCampaign extends MailChimpModel {
         return $this->settings && array_has($this->settings, 'reply_to') ? $this->settings['reply_to'] : null;
     }
 
-    public function getOpensAttribute() {
-        return $this->tracking['opens'];
+    public function getTrackingActiveAttribute() {
+        return $this->tracking && array_has($this->tracking, 'opens') ? $this->tracking['opens'] : null;
     }
 
     public function getTemplateIdAttribute() {
         return $this->settings && array_has($this->settings, 'template_id') ? $this->settings['template_id'] : null;
     }
+
+    public function getOpensAttribute() {
+        return $this->report_summary && array_has($this->report_summary, 'opens') ? $this->report_summary['opens']
+            : null;
+    }
+
+    public function getUniqueOpensAttribute() {
+        return $this->report_summary && array_has($this->report_summary, 'unique_opens')
+            ? $this->report_summary['unique_opens'] : null;
+    }
+
+    public function getOpenRateAttribute() {
+        return $this->report_summary && array_has($this->report_summary, 'open_rate')
+            ? $this->report_summary['open_rate'] : null;
+    }
+
+    public function getClicksAttribute() {
+        return $this->report_summary && array_has($this->report_summary, 'clicks') ? $this->report_summary['clicks']
+            : null;
+    }
+
+    public function getSubscriberClicksAttribute() {
+        return $this->report_summary && array_has($this->report_summary, 'subscriber_clicks')
+            ? $this->report_summary['subscriber_clicks'] : null;
+    }
+
+    public function getClickRateAttribute() {
+        return $this->report_summary && array_has($this->report_summary, 'click_rate')
+            ? $this->report_summary['click_rate'] : null;
+    }
+
+    public function getSocialCardImageUrlAttribute() {
+        return $this->social_card && array_has($this->social_card, 'image_url')
+            ? $this->social_card['image_url'] : null;
+    }
+
+    public function getSocialCardTitleAttribute() {
+        return $this->social_card && array_has($this->social_card, 'title')
+            ? $this->social_card['title'] : null;
+    }
+
+    public function getSocialDescriptionAttribute() {
+        return $this->social_card && array_has($this->social_card, 'description')
+            ? $this->social_card['description'] : null;
+    }
+
+
+
 
     public function setTitleAttribute($value) {
         $this->attributes['settings']['title'] = $value;
@@ -187,8 +302,8 @@ class NewsletterCampaign extends MailChimpModel {
         $this->attributes['settings']['reply_to'] = $value;
     }
 
-    public function setOpensAttribute($value) {
-        $this->attributes['tracking']['opens'] = $value;
+    public function setTrackingActiveAttribute($value) {
+        $this->attributes['tracking']['opens'] = !!$value;
     }
 
     public function setTemplateIdAttribute($value) {
@@ -198,7 +313,20 @@ class NewsletterCampaign extends MailChimpModel {
     public function setRecipientsAttribute($value) {
         if (!is_array($value)) {
             $this->attributes['recipients']['list_id'] = $value;
+        } else {
+            $this->attributes['recipients'] = $value;
         }
-        $this->attributes['recipients'] = $value;
+    }
+
+    public function setSocialCardImageUrlAttribute($value) {
+        $this->attributes['social_card']['image_url'] = $value;
+    }
+
+    public function setSocialCardTitleAttribute($value) {
+        $this->attributes['social_card']['title'] = $value;
+    }
+
+    public function setSocialCardDescriptionAttribute($value) {
+        $this->attributes['social_card']['description'] = $value;
     }
 }

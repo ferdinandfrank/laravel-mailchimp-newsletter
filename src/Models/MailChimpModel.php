@@ -210,7 +210,7 @@ abstract class MailChimpModel implements ArrayAccess, Arrayable, Jsonable, JsonS
      *
      * @param MailChimpModel $parent
      */
-    public function setParent(MailChimpModel $parent) {
+    public function setParent($parent) {
         $this->parent = $parent;
     }
 
@@ -236,7 +236,7 @@ abstract class MailChimpModel implements ArrayAccess, Arrayable, Jsonable, JsonS
         $path = '';
         $parent = $this->getParent();
         while ($parent != null && $parent instanceof MailChimpModel) {
-            $path = $parent::$RESOURCE_NAME . '/' . $parent->getKey() . '/' . $path;
+            $path = $parent::$RESOURCE_NAME . '/' . $parent->getRouteKey() . '/' . $path;
             $parent = $parent->getParent();
         }
 
@@ -532,7 +532,10 @@ abstract class MailChimpModel implements ArrayAccess, Arrayable, Jsonable, JsonS
      * @throws \LogicException
      */
     protected function getRelationshipFromMethod($method) {
-        return $this->$method();
+        $relation = $this->$method();
+        $this->setRelation($method, $relation);
+
+        return $relation;
     }
 
     /**
