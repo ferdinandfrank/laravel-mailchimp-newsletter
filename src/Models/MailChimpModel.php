@@ -104,7 +104,7 @@ abstract class MailChimpModel implements ArrayAccess, Arrayable, Jsonable, JsonS
      * @return string
      */
     public static function getResourceName() {
-        return self::$RESOURCE_NAME;
+        return static::$RESOURCE_NAME;
     }
 
     /**
@@ -438,6 +438,7 @@ abstract class MailChimpModel implements ArrayAccess, Arrayable, Jsonable, JsonS
         // models are updated, giving them a chance to do any special processing.
         $dirty = $this->getDirty();
 
+        $response = true;
         if (count($dirty) > 0) {
             $response = $this->getHandler()->updateModel();
             $this->forceFill($response);
@@ -448,7 +449,7 @@ abstract class MailChimpModel implements ArrayAccess, Arrayable, Jsonable, JsonS
             $this->syncChanges();
         }
 
-        return true;
+        return !!$response;
     }
 
     /**
@@ -474,17 +475,17 @@ abstract class MailChimpModel implements ArrayAccess, Arrayable, Jsonable, JsonS
 
         $this->fireModelEvent('created', false);
 
-        return true;
+        return !!$response;
     }
 
     /**
      * Performs the actual delete query on this model instance.
      */
     protected function performDelete() {
-        $this->getHandler()->deleteModel();
+        $result = $this->getHandler()->deleteModel();
         $this->exists = false;
 
-        return true;
+        return !!$result;
     }
 
     /**
@@ -507,20 +508,24 @@ abstract class MailChimpModel implements ArrayAccess, Arrayable, Jsonable, JsonS
             return null;
         }
 
+        // Check if a relationship exists for that key
         $relationValue = $this->getRelationValue($key);
         if ($relationValue) {
             return $relationValue;
         }
 
         // If the attribute exists in the attribute array or has a "get" mutator we will
-        // get the attribute's value. Otherwise, we will proceed as if the developers
-        // are asking for a relationship's value. This covers both types of values.
+        // get the attribute's value.
+        $value = null;
         if (array_key_exists($key, $this->attributes)
             || $this->hasGetMutator($key)) {
-            return $this->getAttributeValue($key);
+            $value = $this->getAttributeValue($key);
+        }
+        if (empty($value)) {
+            $value = null;
         }
 
-        return null;
+        return $value;
     }
 
     /**

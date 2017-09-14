@@ -4,7 +4,9 @@ namespace FerdinandFrank\LaravelMailChimpNewsletter;
 
 use Exception;
 use FerdinandFrank\LaravelMailChimpNewsletter\Models\MailChimpModel;
+use FerdinandFrank\LaravelMailChimpNewsletter\Models\NewsletterCampaign;
 use FerdinandFrank\LaravelMailChimpNewsletter\Models\NewsletterList;
+use FerdinandFrank\LaravelMailChimpNewsletter\Models\NewsletterListMember;
 
 /**
  * MailChimpHandler
@@ -78,6 +80,7 @@ class MailChimpHandler {
     public function findModel($key, $attributes = []) {
         $this->model->setRouteKey($key);
         $path = $this->model->getApiPath();
+
         try {
             $response = $this::get($path, ['fields' => implode(",", $attributes)]);
         } catch (Exception $exception) {
@@ -109,36 +112,6 @@ class MailChimpHandler {
         $model->exists = true;
 
         return $model;
-    }
-
-    /**
-     * Makes a search request on the MailChimp API to search for corresponding models that matches the specified query.
-     * Optionally only searches on the specified list.
-     *
-     * @param string $query
-     * @param string|null   $listId
-     *
-     * @return Collection
-     */
-    public function searchModel(string $query, $listId = null) {
-        if ($listId instanceof NewsletterList) {
-            $listId = $listId->getRouteKey();
-        }
-
-        $args = ['query' => $query];
-        if ($listId) {
-            $args = array_merge($args, ['list_id' => $listId]);
-        }
-
-        $response = $this->get("search-{$this->model::getResourceName()}", $args);
-        $models = new Collection();
-        foreach ($response['results'] as $modelAttributes) {
-            $model = (new $this->model())->forceFill($modelAttributes);
-            $model->exists = true;
-            $models->push($model);
-        }
-
-        return $models;
     }
 
     /**
@@ -268,12 +241,15 @@ class MailChimpHandler {
      *
      * @param $response
      *
-     * @return array
+     * @return array|bool
      * @throws Exception
      */
     private static function handleResponse($response) {
         if (!static::lastActionSucceeded()) {
             throw new Exception(\MailChimp::getLastError() . '\n Last Response: ' . static::getLastResponse() . '\n Last Request: ' . static::getLastRequest());
+        }
+        if (empty($response)) {
+            return true;
         }
 
         return $response;
@@ -311,10 +287,8 @@ class MailChimpHandler {
      */
     public static function getLastRequest() {
         $response = \MailChimp::getLastRequest();
-        if ($response) {
-            return $response['body'];
-        }
-        return null;
+
+        return json_encode($response);
     }
 
     /**

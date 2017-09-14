@@ -2,6 +2,7 @@
 
 namespace FerdinandFrank\LaravelMailChimpNewsletter\Models;
 
+use FerdinandFrank\LaravelMailChimpNewsletter\Collection;
 use FerdinandFrank\LaravelMailChimpNewsletter\MailChimpHandler;
 
 /**
@@ -27,6 +28,26 @@ class NewsletterList extends MailChimpModel {
      * @var array
      */
     protected $dates = ['date_created'];
+
+    /**
+     * Gets all members of this newsletter list.
+     *
+     * @return Collection
+     */
+    public function members() {
+        return NewsletterListMember::forParent($this)->all();
+    }
+
+    /**
+     * Gets all subscribers of this newsletter list.
+     *
+     * @return Collection
+     */
+    public function subscribers() {
+        return $this->members->filter(function ($member) {
+           return  $member->isSubscribed();
+        });
+    }
 
     /**
      * Creates a new list instance based on the data specified in the config file.

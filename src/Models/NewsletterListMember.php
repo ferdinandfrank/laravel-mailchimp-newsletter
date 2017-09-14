@@ -15,6 +15,8 @@ use FerdinandFrank\LaravelMailChimpNewsletter\MailChimpHandler;
  */
 class NewsletterListMember extends NewsletterListChildModel {
 
+    use IsSearchable;
+
     /**
      * The MailChimp resource name associated with the model.
      *
@@ -48,6 +50,18 @@ class NewsletterListMember extends NewsletterListChildModel {
     protected $dates = ['timestamp_signup', 'timestamp_opt', 'last_changed'];
 
     /**
+     * Gets the array of the specified array that contains the results of a search query.
+     *
+     * @param array $response
+     *
+     * @return array
+     */
+    protected static function getSearchResultsFromResponse(array $response) {
+        return $response['full_search']['members'];
+    }
+
+
+    /**
      * Gets the interests of this member.
      *
      * @return Collection
@@ -77,6 +91,15 @@ class NewsletterListMember extends NewsletterListChildModel {
     }
 
     /**
+     * Gets the activity data for this member.
+     *
+     * @return Collection
+     */
+    public function activity() {
+        return NewsletterListMemberActivity::forParent($this)->all();
+    }
+
+    /**
      * Checks if the member has the interest with the specified id.
      *
      * @param $interestId
@@ -84,7 +107,7 @@ class NewsletterListMember extends NewsletterListChildModel {
      * @return bool
      */
     public function hasInterest($interestId) {
-        return $this->interests()->find($interestId) != null;
+        return $this->interests->find($interestId) != null;
     }
 
     /**
@@ -102,16 +125,53 @@ class NewsletterListMember extends NewsletterListChildModel {
      * @return mixed
      */
     public function getRouteKey() {
-        return MailChimpHandler::getSubscriberHash($this->email_address);
+        if(str_contains($this->email_address, '@')) {
+            return MailChimpHandler::getSubscriberHash($this->email_address);
+        }
+        return $this->email_address;
     }
 
     /**
-     * Checks if the member is actively subscribed to a list.
+     * Sets the state of this user as subscribed.
+     */
+    public function subscribe() {
+        $this->status = 'subscribed';
+        $this->save();
+    }
+
+    /**
+     * Sets the state of this user as pending.
+     */
+    public function activate() {
+        $this->status = 'pending';
+        $this->save();
+    }
+
+    /**
+     * Checks if the member is actively subscribed to the list.
      *
      * @return bool
      */
     public function isSubscribed() {
         return $this->status === 'subscribed';
+    }
+
+    /**
+     * Checks if the member has unsubscribed from the list.
+     *
+     * @return bool
+     */
+    public function isUnsubscribed() {
+        return $this->status === 'unsubscribed';
+    }
+
+    /**
+     * Checks if the member needs to conform his account.
+     *
+     * @return bool
+     */
+    public function isPending() {
+        return $this->status === 'pending';
     }
 
     /**
@@ -135,11 +195,19 @@ class NewsletterListMember extends NewsletterListChildModel {
     }
 
     public function getFirstNameAttribute() {
-        return $this->merge_fields['FNAME'];
+        return $this->merge_fields && array_has($this->merge_fields, 'FNAME') ? $this->merge_fields['FNAME'] : null;
     }
 
     public function getLastNameAttribute() {
-        return $this->merge_fields['LNAME'];
+        return $this->merge_fields && array_has($this->merge_fields, 'LNAME') ? $this->merge_fields['LNAME'] : null;
+    }
+
+    public function getAvgOpenRate() {
+        return $this->stats && array_has($this->stats, 'avg_open_rate') ? $this->stats['avg_open_rate'] : null;
+    }
+
+    public function getAvgClickRate() {
+        return $this->stats && array_has($this->stats, 'avg_click_rate') ? $this->stats['avg_click_rate'] : null;
     }
 
     /**

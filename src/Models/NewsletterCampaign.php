@@ -17,6 +17,8 @@ use Illuminate\Support\Carbon;
  */
 class NewsletterCampaign extends MailChimpModel {
 
+    use IsSearchable;
+
     /**
      * The MailChimp resource name associated with the model.
      *
@@ -69,6 +71,17 @@ class NewsletterCampaign extends MailChimpModel {
     }
 
     /**
+     * Gets the array from the search result that contains the model attributes.
+     *
+     * @param array $result
+     *
+     * @return array
+     */
+    protected static function getModelFromSearchResults(array $result) {
+        return $result['campaign'];
+    }
+
+    /**
      * Sends a test email of the campaign to the specified email addresses.
      *
      * @param        $testEmails
@@ -104,11 +117,16 @@ class NewsletterCampaign extends MailChimpModel {
             throw new CampaignNotReadyException($this->checklist);
         }
 
+        // Check if campaign is already scheduled
+        if ($this->isScheduled()) {
+            $this->unschedule();
+        }
+
         if ($scheduleTime->lte(Carbon::now())) {
             $this->send();
         } else {
             MailChimpHandler::post($this->getApiPath() . '/actions/schedule',
-                ['schedule_time' => $scheduleTime->toAtomString()]);
+                ['schedule_time' => $this->prepareDateTimeForSchedule($scheduleTime)->toAtomString()]);
         }
 
         return $this;
@@ -140,6 +158,27 @@ class NewsletterCampaign extends MailChimpModel {
         MailChimpHandler::post($this->getApiPath() . '/actions/unschedule');
 
         return $this;
+    }
+
+    /**
+     * Rounds the specified datetime to the next possible interval and sets the correct timezone for a schedule on
+     * MailChimp.
+     *
+     * @param Carbon $datetime
+     *
+     * @return Carbon
+     */
+    private function prepareDateTimeForSchedule(Carbon $datetime) {
+        $datetime->second = 0;
+        $minute = $datetime->minute % 15;
+        if ($minute != 0) {
+            $diff = 15 - $minute;
+            $datetime->minute = $minute + $diff;
+        }
+
+        $datetime->setTimezone('UTC');
+
+        return $datetime;
     }
 
     /**
@@ -202,7 +241,7 @@ class NewsletterCampaign extends MailChimpModel {
      * @return bool
      */
     public function isScheduled() {
-        return $this->status === 'scheduled';
+        return $this->status === 'schedule';
     }
 
 
@@ -278,8 +317,6 @@ class NewsletterCampaign extends MailChimpModel {
         return $this->social_card && array_has($this->social_card, 'description')
             ? $this->social_card['description'] : null;
     }
-
-
 
 
     public function setTitleAttribute($value) {
