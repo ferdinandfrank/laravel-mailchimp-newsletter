@@ -79,7 +79,11 @@ trait IsSearchable {
         $offset = ($page - 1) * $perPage;
 
         $results = $this->searchModel($query, $listId, $attributes, $offset)->take($perPage);
-        $total = count($results) + $offset;
+        if ($listId) {
+            $total = NewsletterList::findModel($listId)->stats['member_count'];
+        } else {
+            $total = NewsletterList::getListFromConfig()->stats['member_count'];
+        }
 
         return $this->paginator($results, $total, $perPage, $page, [
             'path'     => Paginator::resolveCurrentPath(),

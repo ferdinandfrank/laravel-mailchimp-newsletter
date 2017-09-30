@@ -4,6 +4,7 @@ namespace FerdinandFrank\LaravelMailChimpNewsletter;
 
 use Exception;
 use FerdinandFrank\LaravelMailChimpNewsletter\Models\MailChimpModel;
+use FerdinandFrank\LaravelMailChimpNewsletter\Models\NewsletterList;
 use Illuminate\Container\Container;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\Paginator;
@@ -75,7 +76,7 @@ class MailChimpHandler {
         $offset = ($page - 1) * $perPage;
 
         $results = $this->all($perPage, $attributes, $offset);
-        $total = count($results) + $offset;
+        $total = NewsletterList::getListFromConfig()->stats['member_count'];
 
         return $this->paginator($results, $total, $perPage, $page, [
             'path'     => Paginator::resolveCurrentPath(),
