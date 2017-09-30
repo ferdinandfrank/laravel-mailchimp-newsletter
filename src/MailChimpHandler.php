@@ -4,9 +4,9 @@ namespace FerdinandFrank\LaravelMailChimpNewsletter;
 
 use Exception;
 use FerdinandFrank\LaravelMailChimpNewsletter\Models\MailChimpModel;
-use FerdinandFrank\LaravelMailChimpNewsletter\Models\NewsletterCampaign;
-use FerdinandFrank\LaravelMailChimpNewsletter\Models\NewsletterList;
-use FerdinandFrank\LaravelMailChimpNewsletter\Models\NewsletterListMember;
+use Illuminate\Container\Container;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
 
 /**
  * MailChimpHandler
@@ -38,14 +38,15 @@ class MailChimpHandler {
     /**
      * Gets all of the models from the MailChimp API.
      *
-     * @param  array $attributes The attributes to receive
      * @param int    $count
+     * @param  array $attributes The attributes to receive
+     * @param int    $offset
      *
      * @return Collection
      */
-    public function all($count = 10, $attributes = []) {
+    public function all($count = 10, $attributes = [], $offset = 0) {
         $path = $this->model->getApiPath();
-        $response = $this->get($path, ['fields' => implode(",", $attributes), 'count' => $count]);
+        $response = $this->get($path, ['fields' => implode(",", $attributes), 'count' => $count, 'offset' => $offset]);
         $models = new Collection();
         foreach ($response[$this->model::getResourceResponseName()] as $modelAttributes) {
             $model = (new $this->model())->forceFill($modelAttributes);
@@ -54,6 +55,49 @@ class MailChimpHandler {
         }
 
         return $models;
+    }
+
+    /**
+     * Paginate the given query.
+     *
+     * @param  int      $perPage
+     * @param  array    $attributes
+     * @param  string   $pageName
+     * @param  int|null $page
+     *
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     * @throws \InvalidArgumentException
+     */
+    public function paginate($perPage = null, $attributes = [], $pageName = 'page', $page = null) {
+        $page = $page ?: Paginator::resolveCurrentPage($pageName);
+        $perPage = $perPage ?: $this->model->getPerPage();
+
+        $offset = ($page - 1) * $perPage;
+
+        $results = $this->all($perPage, $attributes, $offset);
+        $total = count($results) + $offset;
+
+        return $this->paginator($results, $total, $perPage, $page, [
+            'path'     => Paginator::resolveCurrentPath(),
+            'pageName' => $pageName,
+        ]);
+    }
+
+    /**
+     * Create a new length-aware paginator instance.
+     *
+     * @param  \Illuminate\Support\Collection $items
+     * @param  int                            $total
+     * @param  int                            $perPage
+     * @param  int                            $currentPage
+     * @param  array                          $options
+     *
+     * @return \Illuminate\Pagination\LengthAwarePaginator
+     */
+    protected function paginator($items, $total, $perPage, $currentPage, $options) {
+        return Container::getInstance()->makeWith(LengthAwarePaginator::class, compact(
+            'items', 'total', 'perPage', 'currentPage', 'options'
+        ));
     }
 
     /**
@@ -72,8 +116,8 @@ class MailChimpHandler {
     /**
      * Finds a model by its primary key on the MailChimp API.
      *
-     * @param  mixed              $key         The primary key of the model to receive
-     * @param  array              $attributes The attributes to receive
+     * @param  mixed $key        The primary key of the model to receive
+     * @param  array $attributes The attributes to receive
      *
      * @return MailChimpModel
      */
@@ -96,10 +140,10 @@ class MailChimpHandler {
     }
 
     /**
-     * Gets the model from the MailChimp API. It is expected that only one model exists on the index endpoint of the model.
-     * If multiple models exist, the 'all' function should be used.
+     * Gets the model from the MailChimp API. It is expected that only one model exists on the index endpoint of the
+     * model. If multiple models exist, the 'all' function should be used.
      *
-     * @param  array              $attributes The attributes to receive
+     * @param  array $attributes The attributes to receive
      *
      * @return MailChimpModel
      */
@@ -246,7 +290,8 @@ class MailChimpHandler {
      */
     private static function handleResponse($response) {
         if (!static::lastActionSucceeded()) {
-            throw new Exception(\MailChimp::getLastError() . '\n Last Response: ' . static::getLastResponse() . '\n Last Request: ' . static::getLastRequest());
+            throw new Exception(\MailChimp::getLastError() . '\n Last Response: ' . static::getLastResponse()
+                                . '\n Last Request: ' . static::getLastRequest());
         }
         if (empty($response)) {
             return true;
@@ -277,6 +322,7 @@ class MailChimpHandler {
         if ($response) {
             return $response['body'];
         }
+
         return null;
     }
 

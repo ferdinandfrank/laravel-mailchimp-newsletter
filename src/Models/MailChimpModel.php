@@ -63,6 +63,13 @@ abstract class MailChimpModel implements ArrayAccess, Arrayable, Jsonable, JsonS
     public $exists = false;
 
     /**
+     * The number of models to return for pagination.
+     *
+     * @var int
+     */
+    protected $perPage = 15;
+
+    /**
      * Indicates if the model was inserted during the current request lifecycle.
      *
      * @var bool
@@ -150,6 +157,15 @@ abstract class MailChimpModel implements ArrayAccess, Arrayable, Jsonable, JsonS
      */
     public function setRouteKey($key) {
         $this->setKey($key);
+    }
+
+    /**
+     * Get the number of models to return per page.
+     *
+     * @return int
+     */
+    public function getPerPage() {
+        return $this->perPage;
     }
 
     /**

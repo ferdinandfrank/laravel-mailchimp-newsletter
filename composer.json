@@ -19,6 +19,8 @@
         "illuminate/support": "~5.5.0",
         "illuminate/database": "~5.5.0",
         "illuminate/contracts": "~5.5.0",
+        "illuminate/pagination": "~5.5.0",
+        "illuminate/container": "~5.5.0",
         "drewm/mailchimp-api": "^2.4"
     },
     "autoload": {

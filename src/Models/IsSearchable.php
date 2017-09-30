@@ -3,6 +3,7 @@
 namespace FerdinandFrank\LaravelMailChimpNewsletter\Models;
 
 use FerdinandFrank\LaravelMailChimpNewsletter\Collection;
+use Illuminate\Pagination\Paginator;
 
 /**
  * IsSearchable
@@ -21,12 +22,14 @@ trait IsSearchable {
      * Makes a search request on the MailChimp API to search for corresponding models that matches the specified query.
      * Optionally only searches on the specified list.
      *
-     * @param string $query
-     * @param string|null   $listId
+     * @param string      $query
+     * @param string|null $listId
+     * @param array       $attributes
+     * @param int         $offset
      *
      * @return Collection
      */
-    public static function searchModel(string $query, $listId = null) {
+    public static function searchModel(string $query, $listId = null, $attributes = [], $offset = 0) {
 
         if ($listId instanceof NewsletterList) {
             $listId = $listId->getRouteKey();
@@ -34,7 +37,7 @@ trait IsSearchable {
 
         $args = ['query' => $query];
         if ($listId) {
-            $args = array_merge($args, ['list_id' => $listId]);
+            $args = array_merge($args, ['list_id' => $listId, 'fields' => implode(",", $attributes), 'offset' => $offset]);
         }
 
         $model = new static();
@@ -55,6 +58,33 @@ trait IsSearchable {
         }
 
         return $models;
+    }
+
+    /**
+     * Paginate the given query.
+     *
+     * @param string    $query
+     * @param null      $listId
+     * @param  int      $perPage
+     * @param  array    $attributes
+     * @param  string   $pageName
+     * @param  int|null $page
+     *
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     */
+    public function paginateWithSearch(string $query, $listId = null, $perPage = null, $attributes = [], $pageName = 'page', $page = null) {
+        $page = $page ?: Paginator::resolveCurrentPage($pageName);
+        $perPage = $perPage ?: $this->getPerPage();
+
+        $offset = ($page - 1) * $perPage;
+
+        $results = $this->searchModel($query, $listId, $attributes, $offset)->take($perPage);
+        $total = count($results) + $offset;
+
+        return $this->paginator($results, $total, $perPage, $page, [
+            'path'     => Paginator::resolveCurrentPath(),
+            'pageName' => $pageName,
+        ]);
     }
 
     /**
